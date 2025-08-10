@@ -10,8 +10,9 @@ from telegram.ext import (
 from telegram.error import RetryAfter
 
 # ====== ENV ======
-BOT_TOKEN = os.getenv("BOT_TOKEN", "")             # токен из BotFather
-MAIN_CHANNEL_ID = os.getenv("MAIN_CHANNEL_ID", "") # пример: -1001234567890
+BOT_TOKEN = os.getenv("8031543924:AAF0o3la2YVvUTRTbT3jmBxb3mKXNM7ZFQE", "")             # токен из BotFather
+MAIN_CHANNEL_ID = os.getenv("-1001234567890", "") # пример: -1001234567890
+APP_URL = os.getenv("APP_URL", "").rstrip("/")     # https://gateway-bot1.onrender.com
 
 CAPTCHA_TTL_SEC     = int(os.getenv("CAPTCHA_TTL_SEC", "120"))   # секунд на капчу
 INVITE_EXPIRE_MIN   = int(os.getenv("INVITE_EXPIRE_MIN", "5"))   # жизнь инвайта (мин)
@@ -40,6 +41,8 @@ def _check_env():
         int(MAIN_CHANNEL_ID)
     except Exception:
         raise RuntimeError("MAIN_CHANNEL_ID must be numeric like -1001234567890")
+    if not APP_URL:
+        raise RuntimeError("APP_URL is not set (e.g. https://gateway-bot1.onrender.com)")
 
 def _make_captcha():
     a = random.randint(10, 49)
@@ -160,11 +163,24 @@ def main():
     dp.add_handler(CommandHandler("start", start, Filters.chat_type.private))
     dp.add_handler(CommandHandler("help", help_cmd, Filters.chat_type.private))
     dp.add_handler(CallbackQueryHandler(on_callback))
-    # если юзер пишет текст вместо кнопок — показываем капчу
     dp.add_handler(MessageHandler(Filters.chat_type.private & Filters.text & ~Filters.command, send_captcha))
 
-    updater.start_polling(drop_pending_updates=True, allowed_updates=["message", "callback_query"])
-    log.info("Bot is running…")
+    # --- WEBHOOK MODE for Render Web Service ---
+    PORT = int(os.environ.get("PORT", "10000"))
+    updater.start_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        url_path=BOT_TOKEN,
+        webhook_url=f"{APP_URL}/{BOT_TOKEN}",
+        drop_pending_updates=True,
+        allowed_updates=["message", "callback_query"],
+    )
+    log.info("Bot is running (webhook)…")
+    updater.idle()
+
+if __name__ == "__main__":
+    main()
+
     updater.idle()
 
 if __name__ == "__main__":
