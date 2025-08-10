@@ -1,5 +1,5 @@
 import os, time, random, logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
@@ -14,8 +14,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "")             # токен из BotFather
 MAIN_CHANNEL_ID = os.getenv("MAIN_CHANNEL_ID", "") # пример: -1001234567890
 
 CAPTCHA_TTL_SEC     = int(os.getenv("CAPTCHA_TTL_SEC", "120"))   # секунд на капчу
-INVITE_EXPIRE_MIN   = int(os.getenv("INVITE_EXPIRE_MIN", "5"))    # жизнь инвайта (мин)
-INVITE_MEMBER_LIMIT = int(os.getenv("INVITE_MEMBER_LIMIT", "1"))  # одноразовая ссылка
+INVITE_EXPIRE_MIN   = int(os.getenv("INVITE_EXPIRE_MIN", "5"))   # жизнь инвайта (мин)
+INVITE_MEMBER_LIMIT = int(os.getenv("INVITE_MEMBER_LIMIT", "1")) # одноразовая ссылка
 
 # ====== LOG ======
 logging.basicConfig(
@@ -121,7 +121,7 @@ def on_callback(update: Update, context: CallbackContext):
 def send_invite_link(update: Update, context: CallbackContext):
     """Создаёт одноразовую инвайт-ссылку в основной канал."""
     try:
-        expire_ts = int((datetime.utcnow() + timedelta(minutes=INVITE_EXPIRE_MIN)).timestamp())
+        expire_ts = int((datetime.now(timezone.utc) + timedelta(minutes=INVITE_EXPIRE_MIN)).timestamp())
         link = context.bot.create_chat_invite_link(
             chat_id=int(MAIN_CHANNEL_ID),
             expire_date=expire_ts,
@@ -157,13 +157,13 @@ def main():
     updater = Updater(BOT_TOKEN, use_context=True)
     dp = updater.dispatcher
 
-    dp.add_handler(CommandHandler("start", start, Filters.private))
-    dp.add_handler(CommandHandler("help", help_cmd, Filters.private))
+    dp.add_handler(CommandHandler("start", start, Filters.chat_type.private))
+    dp.add_handler(CommandHandler("help", help_cmd, Filters.chat_type.private))
     dp.add_handler(CallbackQueryHandler(on_callback))
     # если юзер пишет текст вместо кнопок — показываем капчу
-    dp.add_handler(MessageHandler(Filters.private & Filters.text & ~Filters.command, send_captcha))
+    dp.add_handler(MessageHandler(Filters.chat_type.private & Filters.text & ~Filters.command, send_captcha))
 
-    updater.start_polling(clean=True, allowed_updates=["message", "callback_query"])
+    updater.start_polling(drop_pending_updates=True, allowed_updates=["message", "callback_query"])
     log.info("Bot is running…")
     updater.idle()
 
