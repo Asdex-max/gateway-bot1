@@ -9,11 +9,16 @@ from telegram.ext import (
 )
 from telegram.error import RetryAfter
 
-# ====== ENV ======
-BOT_TOKEN = os.getenv("8031543924:AAF0o3la2YVvUTRTbT3jmBxb3mKXNM7ZFQE", "")             # токен из BotFather
-MAIN_CHANNEL_ID = os.getenv("-1001234567890", "") # пример: -1001234567890
-APP_URL = os.getenv("APP_URL", "").rstrip("/")     # https://gateway-bot1.onrender.com
+# ====== ЗАМЕНИ или ЗАДАЙ через ENV ======
+# Вариант 1 (рекомендуется): задать в Render → Environment:
+#   BOT_TOKEN, MAIN_CHANNEL_ID, APP_URL, PYTHON_VERSION=3.12.6
+# Вариант 2: оставить как здесь, но ПЕРЕД коммитом в GitHub замени на свои и НЕ светим реальный токен!
 
+BOT_TOKEN = os.getenv("BOT_TOKEN") or "8031543924:AAF0o3la2YVvUTRTbT3jmBxb3mKXNM7ZFQE"  # <— ЗАМЕНИ на свой
+MAIN_CHANNEL_ID = int(os.getenv("MAIN_CHANNEL_ID") or "-1002767513265")                  # <— ЗАМЕНИ на свой
+APP_URL = (os.getenv("APP_URL") or "https://your-service-name.onrender.com").rstrip("/") # <— ЗАМЕНИ на свой Render-URL
+
+# Параметры капчи/ссылки
 CAPTCHA_TTL_SEC     = int(os.getenv("CAPTCHA_TTL_SEC", "120"))   # секунд на капчу
 INVITE_EXPIRE_MIN   = int(os.getenv("INVITE_EXPIRE_MIN", "5"))   # жизнь инвайта (мин)
 INVITE_MEMBER_LIMIT = int(os.getenv("INVITE_MEMBER_LIMIT", "1")) # одноразовая ссылка
@@ -33,16 +38,12 @@ WELCOME = ("👋 Welcome!\n\n"
            "You have *{ttl}* seconds. Tap the correct answer below 👇")
 
 def _check_env():
-    if not BOT_TOKEN:
-        raise RuntimeError("BOT_TOKEN is not set")
+    if not BOT_TOKEN or "YOUR" in BOT_TOKEN:
+        raise RuntimeError("BOT_TOKEN is not set (replace in code or via Render Environment).")
     if not MAIN_CHANNEL_ID:
-        raise RuntimeError("MAIN_CHANNEL_ID is not set")
-    try:
-        int(MAIN_CHANNEL_ID)
-    except Exception:
-        raise RuntimeError("MAIN_CHANNEL_ID must be numeric like -1001234567890")
-    if not APP_URL:
-        raise RuntimeError("APP_URL is not set (e.g. https://gateway-bot1.onrender.com)")
+        raise RuntimeError("MAIN_CHANNEL_ID is not set.")
+    if not APP_URL or "your-service-name" in APP_URL:
+        raise RuntimeError("APP_URL is not set correctly (use your Render URL, e.g. https://gateway-bot1.onrender.com).")
 
 def _make_captcha():
     a = random.randint(10, 49)
@@ -50,7 +51,7 @@ def _make_captcha():
     op = random.choice(["+", "-"])
     ans = a + b if op == "+" else a - b
     text = f"Solve: {a} {op} {b} = ?"
-    # 4 варианта ответа (перемешаны)
+    # 4 варианта ответа
     opts = {ans}
     while len(opts) < 4:
         opts.add(ans + random.randint(-7, 7))
@@ -144,7 +145,7 @@ def send_invite_link(update: Update, context: CallbackContext):
         log.warning("Rate limited. Waiting %s seconds", wait_for)
         time.sleep(wait_for)
         return send_invite_link(update, context)
-    except Exception as e:
+    except Exception:
         log.exception("Failed to create invite link")
         context.bot.send_message(
             chat_id=update.effective_user.id,
@@ -176,11 +177,6 @@ def main():
         allowed_updates=["message", "callback_query"],
     )
     log.info("Bot is running (webhook)…")
-    updater.idle()
-
-if __name__ == "__main__":
-    main()
-
     updater.idle()
 
 if __name__ == "__main__":
